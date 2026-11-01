@@ -602,7 +602,6 @@ async def create_issue(
     files: list[UploadFile] = File(default=[]),
     authorization: str | None = Header(default=None),
 ) -> dict:
-    require_roles(authorization, {"citizen", "government", "admin"})
     if not description.strip():
         raise HTTPException(400, "A description is required")
     if len(description) > 2000:

@@ -45,9 +45,9 @@ function LoginScreen({ onLogin }) {
 }
 
 function App() {
-  const [user, setUser] = useState(() => { try { return JSON.parse(localStorage.getItem("ailan-user")); } catch { return null; } }), [page, setPage] = useState("Overview"), [mobileNav, setMobileNav] = useState(false), [issues, setIssues] = useState([]), [analytics, setAnalytics] = useState(null), [health, setHealth] = useState(null), [selected, setSelected] = useState(null), [query, setQuery] = useState(""), [filter, setFilter] = useState("all"), [showReport, setShowReport] = useState(false), [notice, setNotice] = useState("");
+  const user = { name: "Citizen", email: "Public access", role: "citizen" };
+  const [page, setPage] = useState("Overview"), [mobileNav, setMobileNav] = useState(false), [issues, setIssues] = useState([]), [analytics, setAnalytics] = useState(null), [health, setHealth] = useState(null), [selected, setSelected] = useState(null), [query, setQuery] = useState(""), [filter, setFilter] = useState("all"), [showReport, setShowReport] = useState(false), [notice, setNotice] = useState("");
   const mainRef = useRef(null);
-  const handleLogin = data => { localStorage.setItem("ailan-user", JSON.stringify(data.user)); localStorage.setItem("ailan-token", data.token); setUser(data.user); };
   const refresh = () => Promise.all([request("/issues"), request("/analytics"), request("/health")]).then(([i,a,h]) => { setIssues(i); setAnalytics(a); setHealth(h); return i; }).catch(e => { setNotice(e.message); throw e; });
   const handleReportSaved = async report => {
     setIssues(current => [report, ...current.filter(issue => issue.id !== report.id)]);
@@ -63,7 +63,6 @@ function App() {
   useEffect(() => { refresh(); }, []);
   useEffect(() => { mainRef.current?.scrollTo({ top: 0, behavior: "auto" }); }, [page]);
   const visible = useMemo(() => issues.filter(i => (filter === "all" || i.category === filter) && `${i.title} ${i.location_text}`.toLowerCase().includes(query.toLowerCase())), [issues, filter, query]);
-  if (!user) return <LoginScreen onLogin={handleLogin}/>;
   return <div className="app">
     <aside className={"sidebar "+(mobileNav?"mobile-open":"")}><div className="brand"><div className="brand-mark"><Sparkles size={20}/></div><div><b>Ai-LAN</b><small>Civic intelligence</small></div><button className="mobile-close" onClick={()=>setMobileNav(false)}><X size={18}/></button></div>
       <nav>{[["Overview",Gauge],["Live Civic Map",MapPin],["My Complaints",FileText],...(user.role==="government"||user.role==="admin"?[["Authority Directory",Landmark]]:[]),...(user.role==="admin"?[["Analytics",BarChart3]]:[])].map(([name,Icon]) => <button className={page===name?"active":""} onClick={()=>{setPage(name);setMobileNav(false)}} key={name}><Icon size={18}/>{name}</button>)}</nav>
@@ -77,16 +76,16 @@ function App() {
       {page==="My Complaints" && <Complaints issues={issues} onOpen={setSelected} onReport={()=>setShowReport(true)} />}
       {page==="Analytics" && <Analytics analytics={analytics} />}
       {page==="Authority Directory" && <Authorities />}
-      {page==="My Profile" && <Profile user={user} onLogout={()=>{localStorage.removeItem("ailan-user");localStorage.removeItem("ailan-token");setUser(null)}} />}
+      {page==="My Profile" && <Profile user={user} />}
     </main>
     {selected && <IssuePanel issue={selected} user={user} onClose={()=>setSelected(null)} onUpdated={refresh}/>}
     {showReport && <ReportModal onClose={()=>setShowReport(false)} onDone={handleReportSaved} onError={setNotice}/>}
   </div>;
 }
 
-function Profile({ user, onLogout }) {
+function Profile({ user }) {
   const initials = (user.name || user.email).slice(0, 2).toUpperCase();
-  return <section className="content"><div className="profile-hero"><div className="profile-large-avatar">{initials}</div><div><span className="eyebrow accent">ACCOUNT SETTINGS</span><h2>{user.name}</h2><p>{user.email}</p></div></div><div className="profile-grid"><div className="card profile-details"><div className="profile-section-title"><UserRound size={18}/><h3>Personal information</h3></div><label>Full name<input value={user.name} readOnly/></label><label>Email address<input value={user.email} readOnly/></label><label>Account type<input value={user.role === "admin" ? "Platform administrator" : user.role === "government" ? "Government user" : "Citizen"} readOnly/></label></div><div className="card profile-details"><div className="profile-section-title"><ShieldCheck size={18}/><h3>Privacy & access</h3></div><p className="profile-copy">Your contact details are private and are not shown on the public civic map. You decide when information is shared with an authority.</p><div className="profile-status"><CheckCircle2 size={17}/><span><b>Account protected</b><small>Secure session is active</small></span></div><button className="logout-btn" onClick={onLogout}><LogOut size={16}/> Sign out</button></div></div></section>
+  return <section className="content"><div className="profile-hero"><div className="profile-large-avatar">{initials}</div><div><span className="eyebrow accent">PUBLIC ACCESS</span><h2>{user.name}</h2><p>{user.email}</p></div></div><div className="profile-grid"><div className="card profile-details"><div className="profile-section-title"><UserRound size={18}/><h3>Public reporting</h3></div><p className="profile-copy">You can report civic issues without creating an account or signing in.</p></div><div className="card profile-details"><div className="profile-section-title"><ShieldCheck size={18}/><h3>Privacy</h3></div><p className="profile-copy">Your complaint details are used to route and track the reported civic issue.</p></div></div></section>
 }
 
 function OverviewMap({issues,onOpen}) { return <div className="overview-map card"><div className="overview-map-heading"><div><span className="eyebrow">LIVE CIVIC MAP</span><h3>Problems reported across the city</h3></div><span>{issues.length} reports</span></div><div className="overview-map-frame"><MapContainer center={[25.6093,85.1376]} zoom={13} scrollWheelZoom className="leaflet-map"><TileLayer attribution='&copy; OpenStreetMap contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"/>{issues.map(i=><CircleMarker key={i.id} center={[i.latitude,i.longitude]} radius={9} pathOptions={{color:"#fff",weight:2,fillColor:severityColors[i.severity],fillOpacity:.95}} eventHandlers={{click:()=>onOpen(i)}}><Popup><b>{titleCase(i.title)}</b><br/>{statusLabels[i.status]||i.status}</Popup></CircleMarker>)}</MapContainer></div></div> }
